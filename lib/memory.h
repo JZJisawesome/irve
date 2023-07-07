@@ -111,6 +111,7 @@ namespace irve::internal::memory {
          * @brief Pointer to the ram array
         */
         std::unique_ptr<uint8_t[]> m_ram;
+        std::unique_ptr<uint8_t[]> m_ram2;
 
         /**
          * @brief TODO
