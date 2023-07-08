@@ -1,0 +1,124 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e402cb8..159122e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -19,8 +19,8 @@ endif()
+ 
+ #Disable verbose logging
+ if(NOT DEFINED IRVE_DISABLE_LOGGING)
+-    #set(IRVE_DISABLE_LOGGING 0)#TODO rename to disable verbose logging
+-    set(IRVE_DISABLE_LOGGING 1)#TODO rename to disable verbose logging
++    set(IRVE_DISABLE_LOGGING 0)#TODO rename to disable verbose logging
++    #set(IRVE_DISABLE_LOGGING 1)#TODO rename to disable verbose logging
+ endif()
+ 
+ #Do logging on a separate thread
+diff --git a/irvegdb_smode_gdb_commands b/irvegdb_smode_gdb_commands
+index a9b644e..77ae4fa 100644
+--- a/irvegdb_smode_gdb_commands
++++ b/irvegdb_smode_gdb_commands
+@@ -1,4 +1,4 @@
+ set architecture riscv:rv32
+ target remote :12345
+-break *0x02000000
++break *0xC0000000
+ continue
+diff --git a/lib/memory.cpp b/lib/memory.cpp
+index 5ff626d..d55b50c 100644
+--- a/lib/memory.cpp
++++ b/lib/memory.cpp
+@@ -124,7 +124,8 @@ using namespace irve::internal;
+ /* `pmemory_t` Function Implementations */
+ 
+ memory::pmemory_t::pmemory_t():
+-        m_ram(new uint8_t[RAMSIZE]) {
++        m_ram(new uint8_t[RAMSIZE]),
++        m_ram2(new uint8_t[RAMSIZE]) {
+     irve_fuzzish_meminit(this->m_ram.get(), RAMSIZE);
+ 
+     irvelog(1, "Created new physical memory instance");
+@@ -145,6 +146,9 @@ uint8_t memory::pmemory_t::read_byte(uint64_t addr, access_status_t &access_stat
+         // RAM
+         access_status = AS_OKAY;
+         return this->m_ram[addr];
++    } else if ((addr >= 0xC0000000) && (addr <= 0xC3FFFFFF)) {
++        access_status = AS_OKAY;
++        return this->m_ram2[addr - 0xC0000000];
+     }
+     else if((addr >= MEM_MAP_REGION_START_MMCSR) && (addr <= MEM_MAP_REGION_END_MMCSR)) {
+         // MMCSR
+@@ -170,6 +174,8 @@ void memory::pmemory_t::write_byte(uint64_t addr, uint8_t data) {
+     if(/*(addr >= MEM_MAP_REGION_START_RAM) && */(addr <= MEM_MAP_REGION_END_RAM)) {
+         // RAM
+         this->m_ram[addr] = data;
++    } else if ((addr >= 0xC0000000) && (addr <= 0xC3FFFFFF)) {
++        this->m_ram2[addr - 0xC0000000] = data;
+     }
+     else if((addr >= MEM_MAP_REGION_START_MMCSR) && (addr <= MEM_MAP_REGION_END_MMCSR)) {
+         // MMCSR
+@@ -202,6 +208,8 @@ access_status_t memory::pmemory_t::check_writable_byte(uint64_t addr) {
+     if(/*(addr >= MEM_MAP_REGION_START_RAM) && */(addr <= MEM_MAP_REGION_END_RAM)) {
+         // RAM
+         return AS_OKAY;
++    } else if ((addr >= 0xC0000000) && (addr <= 0xC3FFFFFF)) {
++        return AS_OKAY;
+     }
+     else if((addr >= MEM_MAP_REGION_START_MMCSR) && (addr <= MEM_MAP_REGION_END_MMCSR)) {
+         // MMCSR
+@@ -344,7 +352,7 @@ uint64_t memory::memory_t::translate_address(word_t untranslated_addr, uint8_t a
+         }
+         irvelog(2, "pte found = 0x%08X", pte.u);
+ 
+-        assert(pte_G == 0 && "Global bit was set by software (but we haven't implemented it)");
++        //assert(pte_G == 0 && "Global bit was set by software (but we haven't implemented it)");
+ 
+         // STEP 3
+         if(pte_V == 0 || (pte_R == 0 && pte_W == 1)) {
+diff --git a/lib/memory.h b/lib/memory.h
+index e08c8ce..4c35d99 100644
+--- a/lib/memory.h
++++ b/lib/memory.h
+@@ -111,6 +111,7 @@ namespace irve::internal::memory {
+          * @brief Pointer to the ram array
+         */
+         std::unique_ptr<uint8_t[]> m_ram;
++        std::unique_ptr<uint8_t[]> m_ram2;
+ 
+         /**
+          * @brief TODO
+diff --git a/rvsw/irve_mmode.ld b/rvsw/irve_mmode.ld
+index 2d69474..4ce8a04 100644
+--- a/rvsw/irve_mmode.ld
++++ b/rvsw/irve_mmode.ld
+@@ -15,8 +15,8 @@
+ MEMORY
+ {
+     /* Default memory size is 64M and starts at 0x00000000 */
+-    /* ram : ORIGIN = 0x00000000, LENGTH = 64M */
+-    ram : ORIGIN = 0x00000000, LENGTH = 32M /* Temporary until memory-things are ready */
++    ram : ORIGIN = 0x00000000, LENGTH = 64M
++    /* ram : ORIGIN = 0x00000000, LENGTH = 32M */ /* Temporary until memory-things are ready */
+ }
+ 
+ /* The arch is rv32 */
+diff --git a/rvsw/irve_smode.ld b/rvsw/irve_smode.ld
+index 5ce3411..c909185 100644
+--- a/rvsw/irve_smode.ld
++++ b/rvsw/irve_smode.ld
+@@ -15,8 +15,8 @@
+ MEMORY
+ {
+     /* Default memory size is 64M and starts at 0xC0000000 */
+-    /* ram : ORIGIN = 0xC0000000, LENGTH = 64M */
+-    ram : ORIGIN = 0x02000000, LENGTH = 32M /* Temporary until memory-things are ready */
++    ram : ORIGIN = 0xC0000000, LENGTH = 64M
++    /*ram : ORIGIN = 0x02000000, LENGTH = 32M*/ /* Temporary until memory-things are ready */
+ }
+ 
+ /* The arch is rv32 */
+diff --git a/rvsw/rvsw b/rvsw/rvsw
+--- a/rvsw/rvsw
++++ b/rvsw/rvsw
+@@ -1 +1 @@
+-Subproject commit e62fe68d81dd9bb479457f63f592dae7aa8e71e6
++Subproject commit e62fe68d81dd9bb479457f63f592dae7aa8e71e6-dirty
