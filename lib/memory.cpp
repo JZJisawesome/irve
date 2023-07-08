@@ -124,8 +124,7 @@ using namespace irve::internal;
 /* `pmemory_t` Function Implementations */
 
 memory::pmemory_t::pmemory_t():
-        m_ram(new uint8_t[RAMSIZE]),
-        m_ram2(new uint8_t[RAMSIZE]) {
+        m_ram(new uint8_t[RAMSIZE]) {
     irve_fuzzish_meminit(this->m_ram.get(), RAMSIZE);
 
     irvelog(1, "Created new physical memory instance");
@@ -146,9 +145,6 @@ uint8_t memory::pmemory_t::read_byte(uint64_t addr, access_status_t &access_stat
         // RAM
         access_status = AS_OKAY;
         return this->m_ram[addr];
-    } else if ((addr >= 0xC0000000) && (addr <= 0xC3FFFFFF)) {
-        access_status = AS_OKAY;
-        return this->m_ram2[addr - 0xC0000000];
     }
     else if((addr >= MEM_MAP_REGION_START_MMCSR) && (addr <= MEM_MAP_REGION_END_MMCSR)) {
         // MMCSR
@@ -174,8 +170,6 @@ void memory::pmemory_t::write_byte(uint64_t addr, uint8_t data) {
     if(/*(addr >= MEM_MAP_REGION_START_RAM) && */(addr <= MEM_MAP_REGION_END_RAM)) {
         // RAM
         this->m_ram[addr] = data;
-    } else if ((addr >= 0xC0000000) && (addr <= 0xC3FFFFFF)) {
-        this->m_ram2[addr - 0xC0000000] = data;
     }
     else if((addr >= MEM_MAP_REGION_START_MMCSR) && (addr <= MEM_MAP_REGION_END_MMCSR)) {
         // MMCSR
@@ -207,8 +201,6 @@ access_status_t memory::pmemory_t::check_writable_byte(uint64_t addr) {
     // PMP check for writing to memory
     if(/*(addr >= MEM_MAP_REGION_START_RAM) && */(addr <= MEM_MAP_REGION_END_RAM)) {
         // RAM
-        return AS_OKAY;
-    } else if ((addr >= 0xC0000000) && (addr <= 0xC3FFFFFF)) {
         return AS_OKAY;
     }
     else if((addr >= MEM_MAP_REGION_START_MMCSR) && (addr <= MEM_MAP_REGION_END_MMCSR)) {
@@ -352,7 +344,7 @@ uint64_t memory::memory_t::translate_address(word_t untranslated_addr, uint8_t a
         }
         irvelog(2, "pte found = 0x%08X", pte.u);
 
-        //assert(pte_G == 0 && "Global bit was set by software (but we haven't implemented it)");
+        assert(pte_G == 0 && "Global bit was set by software (but we haven't implemented it)");
 
         // STEP 3
         if(pte_V == 0 || (pte_R == 0 && pte_W == 1)) {
