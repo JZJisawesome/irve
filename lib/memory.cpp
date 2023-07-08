@@ -295,7 +295,7 @@ uint64_t memory::memory_t::translate_address(word_t untranslated_addr, uint8_t a
         }
         irvelog(2, "pte found = 0x%08X", pte.u);
 
-        assert(pte_G == 0 && "Global bit was set by software (but we haven't implemented it)");
+        //assert(pte_G == 0 && "Global bit was set by software (but we haven't implemented it)");
 
         // STEP 3
         if(pte_V == 0 || (pte_R == 0 && pte_W == 1)) {
@@ -449,11 +449,43 @@ word_t memory::memory_t::read_memory_region_user_ram(uint64_t addr, uint8_t data
 
 word_t memory::memory_t::read_memory_region_kernal_ram(uint64_t addr, uint8_t data_type, access_status_t& access_status) const {
     assert((addr >= MEM_MAP_REGION_START_KERNAL_RAM) && (addr <= MEM_MAP_REGION_END_KERNAL_RAM) && "This should never happen");
-    assert(false && "Not implemented yet"); // TODO test read_memory_region_user_ram before implementing this
-    
-    // Just here to avoid compiler warnings for now
-    access_status = AS_OKAY;
-    return word_t((uint32_t(addr) + data_type));
+
+    // Check for misaligned access
+    if (((data_type & DATA_WIDTH_MASK) == DT_HALFWORD) && ((addr & 0b1) != 0)) {
+        // Misaligned halfword read
+        access_status = AS_MISALIGNED;
+        return word_t(0);
+    }
+    else if ((data_type == DT_WORD) && ((addr & 0b11) != 0)) {
+        // Misaligned word read
+        access_status = AS_MISALIGNED;
+        return word_t(0);
+    }
+
+    word_t data;
+    uint64_t mem_index = addr - MEM_MAP_REGION_START_KERNAL_RAM;
+    void* mem_ptr = &(m_kernal_ram[mem_index]);
+    switch(data_type) {
+        case DT_WORD:
+            data = *(uint32_t*)mem_ptr;
+            break;
+        case DT_UNSIGNED_HALFWORD:
+            data = (uint32_t)(*(uint16_t*)mem_ptr);
+            break;
+        case DT_SIGNED_HALFWORD:
+            data = (int32_t)(*(int16_t*)mem_ptr);
+            break;
+        case DT_UNSIGNED_BYTE:
+            data = (uint32_t)(*(uint8_t*)mem_ptr);
+            break;
+        case DT_SIGNED_BYTE:
+            data = (int32_t)(*(int8_t*)mem_ptr);
+            break;
+        default:
+            assert(false && "This should never happen");
+    }
+
+    return data;
 }
 
 word_t memory::memory_t::read_memory_region_mmcsr(uint64_t addr, uint8_t data_type, access_status_t& access_status) const {
@@ -556,11 +588,31 @@ void memory::memory_t::write_memory_region_user_ram(uint64_t addr, uint8_t data_
 
 void memory::memory_t::write_memory_region_kernal_ram(uint64_t addr, uint8_t data_type, word_t data, access_status_t& access_status) {
     assert(((addr >= MEM_MAP_REGION_START_KERNAL_RAM) && (addr <= MEM_MAP_REGION_END_KERNAL_RAM)) && "This should never happen");
-    assert(false && "Not implemented yet"); // TODO
 
-    // Just here to avoid compiler warnings for now
-    if(data_type || addr || data.u) {
-        access_status = AS_OKAY;
+    // Check for misaligned access
+    if (((data_type & DATA_WIDTH_MASK) == DT_HALFWORD) && ((addr & 0b1) != 0)) {
+        // Misaligned halfword write
+        access_status = AS_MISALIGNED;
+    }
+    else if ((data_type == DT_WORD) && ((addr & 0b11) != 0)) {
+        // Misaligned word write
+        access_status = AS_MISALIGNED;
+    }
+
+    uint64_t mem_index = addr - MEM_MAP_REGION_START_KERNAL_RAM;
+    void* mem_ptr = &(m_kernal_ram[mem_index]);
+    switch(data_type) {
+        case DT_WORD:
+            *(uint32_t*)mem_ptr = data.u;
+            break;
+        case DT_HALFWORD:
+            *(uint16_t*)mem_ptr = (uint16_t)data.u;
+            break;
+        case DT_BYTE:
+            *(uint8_t*)mem_ptr = (uint8_t)data.u;
+            break;
+        default:
+            assert(false && "This should never happen");
     }
 }
     
