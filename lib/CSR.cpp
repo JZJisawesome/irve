@@ -204,7 +204,7 @@ void CSR::CSR_t::implicit_write(uint16_t csr, word_t data) {//Does not perform a
         case address::MEDELEG:          this->medeleg = data & 0b0000000000000000'1011001111111111; return;//Note it dosn't make sense to delegate ECALL from M-mode since we can never delagte to high levels
         case address::MIDELEG:          this->mideleg = data & 0b00000000000000000000'1010'1010'1010; return;
         case address::MIE:              this->mie     = data & 0b00000000000000000000'1010'1010'1010; return;
-        case address::MTVEC:            this->mtvec   = data; printf("MTVEC written: 0x%X", data.u); return;//FIXME WARL
+        case address::MTVEC:            this->mtvec   = data; return;//FIXME WARL
         case address::MENVCFG:          this->menvcfg = data & 0b1; return;//Only lowest bit is RW
         case address::MSTATUSH:         return;//We simply ignore writes to mstatush, NOT throw an exception
         case address::MENVCFGH:         return;//We simply ignore writes to menvcfgh, NOT throw an exception
