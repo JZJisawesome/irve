@@ -319,10 +319,10 @@ uint64_t memory::memory_t::translate_address(word_t untranslated_addr, uint8_t a
     }
 
     // STEP 5
-    if(ACCESS_NOT_ALLOWED) {
+    /*if(ACCESS_NOT_ALLOWED) {
         irvelog(2, "This access is not allowed, raising exception");
         invoke_rv_exception_by_num((rvexception::cause_t)(PAGE_FAULT_BASE + access_type));
-    }
+    }*/
 
     // STEP 6
     if((i == 1) && (pte_PPN0 != 0)) {
