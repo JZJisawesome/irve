@@ -111,10 +111,10 @@ decode::decoded_inst_t emulator::emulator_t::fetch_and_decode() {
 
     //Note: Using exceptions instead to catch misses is (very slightly) faster when using the same few instructions over and over again
     //(ex in nouveau_stress_test). But it tanks perf in other scenarios. So we do compare-and-branch instead
-    /*if (this->m_icache.contains(pc.u)) {
+    if (this->m_icache.contains(pc.u)) {
         irvelog(1, "Cache hit");
         return this->m_icache.at(pc.u);
-    } else {*/
+    } else {
         irvelog(1, "Cache miss");
 
         //Read a word from memory at the PC
@@ -139,7 +139,7 @@ decode::decoded_inst_t emulator::emulator_t::fetch_and_decode() {
         }
 
         return decoded_inst;
-    //}
+    }
 }
 
 //TODO move this to a separate file maybe?
